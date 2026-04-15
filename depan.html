@@ -1,0 +1,209 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TANDAN DESA</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+font-family:'Poppins',sans-serif;
+background:#eef3f3;
+}
+
+/* APPBAR */
+.appbar{
+position:fixed;
+top:0;
+width:100%;
+background:linear-gradient(135deg,#0a7c6b,#0fb9a8);
+color:white;
+padding:16px 10px;
+text-align:center;
+z-index:10;
+}
+
+.appbar img{
+width:90px;
+margin-bottom:8px;
+}
+
+.title1{font-size:26px;font-weight:700;}
+.title2{font-size:17px;}
+.title3{font-size:17px;opacity:0.85;}
+
+/* 🔥 BACKGROUND AREA UNTUK TOMBOL */
+.content{
+margin-top:230px;
+padding:30px 16px 140px;
+
+/* BACKGROUND GAMBAR */
+background:url('bag.png') no-repeat center center;
+background-size:cover;
+
+/* BIAR FULL SCREEN */
+min-height:100vh;
+}
+
+/* OVERLAY BIAR TULISAN JELAS */
+.content::before{
+content:'';
+position:absolute;
+top:0;
+left:0;
+width:100%;
+height:100%;
+background:rgba(255,255,255,0.75);
+z-index:0;
+}
+
+.content > *{
+position:relative;
+z-index:1;
+}
+
+/* CARD */
+.card{
+background:white;
+padding:20px;
+border-radius:20px;
+margin-bottom:20px;
+display:flex;
+align-items:center;
+gap:16px;
+box-shadow:0 8px 25px rgba(0,0,0,0.15);
+cursor:pointer;
+transition:0.2s;
+}
+
+.card:hover{
+transform:scale(1.03);
+}
+
+.card-icon{
+width:55px;
+height:55px;
+border-radius:50%;
+display:flex;
+align-items:center;
+justify-content:center;
+font-size:24px;
+background:#0a7c6b;
+color:white;
+}
+
+.card-text{
+font-size:18px;
+font-weight:600;
+}
+
+/* NAVBAR */
+.navbar{
+position:fixed;
+bottom:0;
+width:100%;
+background:white;
+display:flex;
+justify-content:space-around;
+padding:10px 0;
+box-shadow:0 -3px 12px rgba(0,0,0,0.15);
+z-index:10;
+}
+
+/* BERKAH */
+.berkah-container{
+position:fixed;
+bottom:60px;
+width:100%;
+height:90px; /* 🔥 diperbesar agar tidak kepotong */
+background:#0a7c6b;
+overflow:hidden;
+z-index:9;
+display:flex;
+align-items:center; /* 🔥 biar tengah */
+}
+
+.berkah-track{
+display:flex;
+width:200%;
+animation:scroll 18s linear infinite;
+}
+
+.berkah-item{
+display:flex;
+align-items:center;
+font-size:18px;
+font-weight:600;
+color:white;
+padding:0 40px;
+white-space:nowrap;
+}
+
+.berkah-item img{
+height:55px; /* 🔥 diperbesar & aman */
+margin:0 12px;
+object-fit:contain; /* 🔥 anti kepotong */
+}
+
+@keyframes scroll{
+from{transform:translateX(0);}
+to{transform:translateX(-50%);}
+}
+</style>
+</head>
+
+<body>
+
+<div class="appbar">
+<img src="tandan.png">
+<div class="title1">TANDAN DESA</div>
+<div class="title2">DATA DAN INFORMASI ADMINISTRASI DESA</div>
+<div class="title3">KEC. BOTOLINGGO KAB.BONDOWOSO</div>
+</div>
+
+<div class="content">
+
+<div class="card" onclick="go('kecamatan.html')">
+<div class="card-icon">📊</div>
+<div class="card-text">Data Kecamatan</div>
+</div>
+
+<div class="card" onclick="go('awal.html')">
+<div class="card-icon">🏡</div>
+<div class="card-text">Data Desa</div>
+</div>
+
+</div>
+
+<div class="berkah-container">
+<div class="berkah-track">
+
+<div class="berkah-item"><img src="berkah.png"> BONDOWOSO BERKAH</div>
+<div class="berkah-item"><img src="berkah.png"> BONDOWOSO BERKAH</div>
+<div class="berkah-item"><img src="berkah.png"> BONDOWOSO BERKAH</div>
+
+<div class="berkah-item"><img src="berkah.png"> BONDOWOSO BERKAH</div>
+<div class="berkah-item"><img src="berkah.png"> BONDOWOSO BERKAH</div>
+<div class="berkah-item"><img src="berkah.png"> BONDOWOSO BERKAH</div>
+
+</div>
+</div>
+
+<div class="navbar">
+<div>🏠 Home</div>
+<div onclick="go('awal.html')">🏡 Desa</div>
+<div onclick="go('kecamatan.html')">📊 Kecamatan</div>
+</div>
+
+<script>
+function go(link){
+window.location.href = link;
+}
+</script>
+
+</body>
+</html>

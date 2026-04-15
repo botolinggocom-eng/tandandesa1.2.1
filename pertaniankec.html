@@ -1,0 +1,250 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Pertanian Kecamatan</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root{--primary:#0a7c6b;--bg:#f4f7f7;}
+body{font-family:'Poppins',Arial;margin:0;padding:10px;background:var(--bg);}
+h3{position:sticky;top:0;background:var(--bg);z-index:10;text-align:center;color:var(--primary);font-size:18px;margin-bottom:10px;padding:10px 0;}
+.filter-box{background:white;padding:12px;border-radius:14px;margin-bottom:12px;display:flex;flex-direction:column;gap:10px;box-shadow:0 4px 10px rgba(0,0,0,0.05);}
+select{padding:12px;border-radius:12px;border:1px solid #ccc;font-size:14px;}
+button{padding:12px;border-radius:12px;border:none;font-weight:bold;font-size:14px;cursor:pointer;}
+.btn-filter{background:#0a7c6b;color:white;}
+.btn-pdf{background:#1976d2;color:white;}
+.table-wrapper{overflow-x:auto;background:white;border-radius:14px;box-shadow:0 4px 12px rgba(0,0,0,0.05);}
+table{width:100%;min-width:700px;border-collapse:collapse;font-size:12px;}
+th,td{border:1px solid #eee;padding:8px;text-align:center;}
+th{background:var(--primary);color:white;}
+tfoot td{background:#e0f2f1;font-weight:bold;}
+canvas{margin-top:15px;background:white;padding:10px;border-radius:14px;}
+@media(min-width:768px){
+body{padding:20px;}
+.filter-box{flex-direction:row;flex-wrap:wrap;}
+select{width:auto;}
+button{width:auto;}
+h3{font-size:22px;}
+table{font-size:13px;}
+}
+</style>
+</head>
+
+<body>
+
+<div id="main-content"></div>
+
+<script>
+
+// ===== DATA =====
+const desaList=[
+"BOTOLINGGO","SUMBER CANTING","GAYAM","GAYAM LOR",
+"KLEKEAN","PENANG","LANAS","LUMUTAN"
+];
+
+const bulanList=[
+"Januari","Februari","Maret","April","Mei","Juni",
+"Juli","Agustus","September","Oktober","November","Desember"
+];
+
+const tahunList=[2026,2027,2028,2029,2030];
+
+const fields=[
+{key:"petani",label:"Petani"},
+{key:"buruh",label:"Buruh Tani"},
+{key:"kelompok",label:"Kelompok Tani"},
+{key:"urea",label:"Urea"},
+{key:"npk",label:"NPK"},
+{key:"za",label:"ZA"},
+{key:"organik",label:"Organik"}
+];
+
+let chart;
+
+// 🔥 DATA FIREBASE
+let dataFirebase = {};
+
+// ===== INIT =====
+function init(){
+
+document.getElementById("main-content").innerHTML=`
+<h3>DATA PERTANIAN KECAMATAN</h3>
+
+<div class="filter-box">
+<select id="filterBulan">
+<option value="">SEMUA BULAN</option>
+${bulanList.map(b=>`<option>${b}</option>`).join('')}
+</select>
+
+<select id="filterTahun">
+<option value="">SEMUA TAHUN</option>
+${tahunList.map(t=>`<option>${t}</option>`).join('')}
+</select>
+
+<button class="btn-filter" onclick="render()">🔍 Filter</button>
+<button class="btn-pdf" onclick="exportPDF()">📄 Export PDF</button>
+</div>
+
+<div class="table-wrapper">
+<table id="tableData">
+<thead>
+<tr>
+<th>No</th>
+<th>Desa</th>
+<th>Bulan</th>
+<th>Tahun</th>
+${fields.map(f=>`<th>${f.label}</th>`).join('')}
+<th>Total</th>
+</tr>
+</thead>
+<tbody id="tb"></tbody>
+<tfoot id="tf"></tfoot>
+</table>
+</div>
+
+<canvas id="chart"></canvas>
+`;
+
+setTimeout(render,100);
+}
+
+// ===== RENDER (PAKAI FIREBASE) =====
+function render(){
+
+const tb=document.getElementById("tb");
+const tf=document.getElementById("tf");
+
+const fB=document.getElementById("filterBulan").value;
+const fT=document.getElementById("filterTahun").value;
+
+tb.innerHTML="";
+tf.innerHTML="";
+
+let no=0;
+let totalField={};
+fields.forEach(f=>totalField[f.key]=0);
+let totalAll=0;
+
+let totalPerDesa={};
+desaList.forEach(d=>totalPerDesa[d]=0);
+
+desaList.forEach(desa=>{
+
+const rows=(dataFirebase[desa]||[]).filter(r=>
+(!fB||r.bulan===fB)&&(!fT||r.tahun==fT)
+);
+
+rows.forEach(r=>{
+no++;
+
+let totalRow=0;
+
+fields.forEach(f=>{
+let val=Number(r[f.key]||0);
+totalField[f.key]+=val;
+totalRow+=val;
+totalPerDesa[desa]+=val;
+});
+
+totalAll+=totalRow;
+
+tb.innerHTML+=`
+<tr>
+<td>${no}</td>
+<td>${desa}</td>
+<td>${r.bulan}</td>
+<td>${r.tahun}</td>
+${fields.map(f=>`<td>${r[f.key]||0}</td>`).join('')}
+<td>${totalRow}</td>
+</tr>`;
+});
+
+});
+
+if(no===0){
+tb.innerHTML=`<tr><td colspan="100%">DATA BELUM ADA</td></tr>`;
+}
+
+tf.innerHTML=`
+<tr>
+<td colspan="4">TOTAL</td>
+${fields.map(f=>`<td>${totalField[f.key]}</td>`).join('')}
+<td>${totalAll}</td>
+</tr>
+`;
+
+// ===== CHART =====
+if(chart) chart.destroy();
+
+chart=new Chart(document.getElementById("chart"),{
+type:'bar',
+data:{
+labels:desaList,
+datasets:[{
+label:"Total Pertanian",
+data:desaList.map(d=>totalPerDesa[d]),
+backgroundColor:[
+"#ef5350","#42a5f5","#66bb6a","#ffa726",
+"#ab47bc","#26c6da","#d4e157","#8d6e63"
+]
+}]
+}
+});
+}
+
+// ===== PDF =====
+function exportPDF(){
+
+const { jsPDF } = window.jspdf;
+
+let doc=new jsPDF({orientation:"landscape"});
+
+doc.text("LAPORAN DATA PERTANIAN KECAMATAN",148,10,{align:'center'});
+
+doc.autoTable({
+html:'#tableData',
+startY:20,
+styles:{fontSize:7}
+});
+
+doc.save("pertanian_kecamatan.pdf");
+}
+
+// START
+init();
+
+</script>
+
+<!-- 🔥 FIREBASE -->
+<script type="module">
+import { baca } from "./firebase.js";
+
+// 🔥 AMBIL SEMUA DATA PERTANIAN DESA
+baca("desa/pertanian", (fbData)=>{
+
+  if(!fbData) return;
+
+  dataFirebase = {};
+
+  for(let key in fbData){
+
+    let keyFix = key.toUpperCase();
+
+    let val = fbData[key];
+
+    dataFirebase[keyFix] = Array.isArray(val)
+      ? val
+      : Object.values(val);
+  }
+
+  render();
+});
+</script>
+
+</body>
+</html>

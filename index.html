@@ -1,0 +1,204 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Login Sistem</title>
+<link rel="manifest" href="manifest.json">
+<meta name="theme-color" content="#0a7c6b">
+<style>
+:root{--primary:#0a7c6b;}
+
+body{
+  font-family:'Poppins',Arial;
+  display:flex;
+  justify-content:center;
+  align-items:center;
+  height:100vh;
+  background:#f4f7fb;
+  margin:0;
+}
+
+.card{
+  background:white;
+  padding:30px;
+  border-radius:12px;
+  width:320px;
+  box-shadow:0 5px 15px rgba(0,0,0,0.1);
+}
+
+h3{
+  text-align:center;
+  color:var(--primary);
+  margin-bottom:15px;
+}
+
+select,input{
+  width:100%;
+  padding:10px;
+  margin:8px 0;
+  border-radius:8px;
+  border:1px solid #ccc;
+  font-size:14px;
+}
+
+button{
+  width:100%;
+  padding:12px;
+  background:var(--primary);
+  color:white;
+  border:none;
+  border-radius:8px;
+  font-weight:bold;
+  cursor:pointer;
+}
+
+.show-pass{
+  font-size:13px;
+  margin-top:-5px;
+  margin-bottom:10px;
+}
+</style>
+</head>
+
+<body>
+
+<div class="card">
+
+<h3>LOGIN TANDAN DESA</h3>
+
+<select id="role" onchange="toggleDesa()">
+  <option value="desa">Login Desa</option>
+  <option value="kecamatan">Login Kecamatan</option>
+</select>
+
+<!-- 🔥 PERBAIKAN DI SINI (PAKAI VALUE) -->
+<select id="desa">
+  <option value="">Pilih Desa</option>
+  <option value="BOTOLINGGO">BOTOLINGGO</option>
+  <option value="SUMBER CANTING">SUMBER CANTING</option>
+  <option value="GAYAM">GAYAM</option>
+  <option value="GAYAM LOR">GAYAM LOR</option>
+  <option value="KLEKEAN">KLEKEAN</option>
+  <option value="PENANG">PENANG</option>
+  <option value="LANAS">LANAS</option>
+  <option value="LUMUTAN">LUMUTAN</option>
+</select>
+
+<input type="password" id="password" placeholder="Password">
+
+<div class="show-pass">
+  <input type="checkbox" onclick="togglePassword()"> Tampilkan Password
+</div>
+
+<button onclick="loginUser()">LOGIN</button>
+
+</div>
+
+<script>
+
+// ===== DATA AKUN DESA =====
+const akunDesa = {
+  "BOTOLINGGO": "1231",
+  "SUMBER CANTING": "1232",
+  "GAYAM": "1233",
+  "GAYAM LOR": "1234",
+  "KLEKEAN": "1235",
+  "PENANG": "1236",
+  "LANAS": "1237",
+  "LUMUTAN": "1238"
+};
+
+// ===== PASSWORD KECAMATAN =====
+const passwordKecamatan = "111";
+
+// ===== TOGGLE DESA =====
+function toggleDesa(){
+  const role = document.getElementById("role").value;
+  const desaField = document.getElementById("desa");
+
+  if(role === "desa"){
+    desaField.style.display = "block";
+  }else{
+    desaField.style.display = "none";
+    desaField.value = "";
+  }
+}
+
+// ===== SHOW PASSWORD =====
+function togglePassword(){
+  const input = document.getElementById("password");
+  input.type = input.type === "password" ? "text" : "password";
+}
+
+// ===== LOGIN =====
+function loginUser(){
+
+  const role = document.getElementById("role").value;
+  const desa = document.getElementById("desa").value.trim();
+  const password = document.getElementById("password").value.trim();
+
+  // ===== LOGIN DESA =====
+  if(role === "desa"){
+
+    if(!desa){
+      alert("Pilih desa!");
+      return;
+    }
+
+    if(!password){
+      alert("Masukkan password!");
+      return;
+    }
+
+    if(akunDesa[desa] === password){
+
+      localStorage.setItem("user", JSON.stringify({
+        role: "desa",
+        desa: desa
+      }));
+
+      alert("Login berhasil ✅");
+      window.location.href = "depan.html";
+
+    }else{
+      alert("❌ Password desa salah!");
+    }
+  }
+
+  // ===== LOGIN KECAMATAN =====
+  else if(role === "kecamatan"){
+
+    if(!password){
+      alert("Masukkan password!");
+      return;
+    }
+
+    if(password === passwordKecamatan){
+
+      localStorage.setItem("user", JSON.stringify({
+        role: "kecamatan"
+      }));
+
+      alert("Login kecamatan berhasil ✅");
+      window.location.href = "depan.html";
+
+    }else{
+      alert("❌ Password kecamatan salah!");
+    }
+  }
+}
+
+// jalankan awal
+toggleDesa();
+
+</script>
+<script>
+if ("serviceWorker" in navigator) {
+  navigator.serviceWorker.register("sw.js")
+  .then(() => console.log("Service Worker aktif"))
+  .catch(err => console.log("SW gagal:", err));
+}
+</script>
+</body>
+</html>

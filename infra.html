@@ -1,0 +1,306 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Infrastruktur Jalan</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root{--primary:#0a7c6b;}
+body{font-family:'Poppins', Arial;background:#f4f7fb;margin:0;padding:10px;}
+#main-content{max-width:1200px;margin:auto;background:white;padding:15px;border-radius:12px;}
+h3{text-align:center;color:var(--primary);font-size:18px;}
+.form-item{display:flex;flex-direction:column;margin-bottom:10px;}
+label{font-size:13px;margin-bottom:3px;}
+input,select{padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;width:100%;}
+button{padding:10px;border:none;border-radius:8px;color:white;cursor:pointer;font-weight:600;margin-top:5px;width:100%;}
+.btn-simpan{background:#0a7c6b;}
+.btn-ubah{background:#fd7e14;}
+.btn-tetap{background:#198754;}
+.btn-filter{background:#0d6efd;}
+.btn-pdf{background:#0a7c6b;}
+.btn-edit{background:#ffc107;color:black;width:auto;padding:5px 8px;}
+.btn-hapus{background:#dc3545;width:auto;padding:5px 8px;}
+.filter-box{display:flex;flex-direction:column;gap:5px;margin-top:10px;}
+.table-wrapper{overflow-x:auto;margin-top:15px;}
+table{width:100%;min-width:700px;border-collapse:collapse;font-size:12px;}
+th,td{border:1px solid #ddd;padding:6px;text-align:center;}
+th{background:var(--primary);color:white;position:sticky;top:0;}
+@media(min-width:768px){
+body{padding:20px;}
+.form-item{flex-direction:row;align-items:center;}
+.form-item label{width:200px;}
+button{width:auto;}
+.filter-box{flex-direction:row;align-items:center;flex-wrap:wrap;}
+}
+</style>
+</head>
+
+<body>
+
+<div id="main-content"></div>
+
+<script>
+
+// ===== DESA =====
+const params = new URLSearchParams(window.location.search);
+let desa = params.get("wilayah");
+let desaFix = desa ? desa.toUpperCase() : "";
+
+if(!desa){
+alert("Desa tidak dipilih!");
+window.location.href="awal.html";
+}
+
+// ===== DATA =====
+const bulanList=[
+"Januari","Februari","Maret","April","Mei","Juni",
+"Juli","Agustus","September","Oktober","November","Desember"
+];
+
+const tahunList=[2026,2027,2028,2029,2030];
+
+const fields=[
+{key:"aspal",label:"Aspal"},
+{key:"aspal_rusak",label:"Aspal Rusak"},
+{key:"paving",label:"Paving"},
+{key:"paving_rusak",label:"Paving Rusak"},
+{key:"makadam",label:"Makadam"},
+{key:"makadam_rusak",label:"Makadam Rusak"},
+{key:"tanah",label:"Jalan Tanah"}
+];
+
+// ===== STORAGE =====
+let data=JSON.parse(localStorage.getItem("dataJalan"))||{};
+if(!data[desaFix]) data[desaFix]=[];
+
+let editIndex=null;
+let modeEdit=false;
+
+function save(){
+localStorage.setItem("dataJalan",JSON.stringify(data));
+}
+
+// ===== FORM =====
+function formDesa(){
+
+const c=document.getElementById("main-content");
+
+c.innerHTML=`
+<h3>DATA INFRASTRUKTUR JALAN DESA ${desa}</h3>
+
+<form id="formDesaForm">
+
+<div class="form-item">
+<label>Bulan</label>
+<select name="bulan" id="bulanSelect">
+${bulanList.map(b=>`<option>${b}</option>`).join('')}
+</select>
+</div>
+
+<div class="form-item">
+<label>Tahun</label>
+<select name="tahun">
+${tahunList.map(t=>`<option>${t}</option>`).join('')}
+</select>
+</div>
+
+${fields.map(f=>`
+<div class="form-item">
+<label>${f.label}</label>
+<input type="number" name="${f.key}">
+</div>`).join('')}
+
+<button type="submit" class="btn-simpan">SIMPAN</button>
+<button type="button" onclick="modeUbah()" class="btn-ubah">UBAH DATA</button>
+<button type="button" onclick="modeTetap()" class="btn-tetap">TETAP</button>
+
+</form>
+
+<hr>
+
+<div class="filter-box">
+<select id="filterBulan">
+<option value="">Semua Bulan</option>
+${bulanList.map(b=>`<option>${b}</option>`).join('')}
+</select>
+
+<select id="filterTahun">
+<option value="">Semua Tahun</option>
+${tahunList.map(t=>`<option>${t}</option>`).join('')}
+</select>
+
+<button onclick="render()" class="btn-filter">FILTER</button>
+<button onclick="exportPDF()" class="btn-pdf">EXPORT PDF</button>
+</div>
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>No</th>
+<th>Bulan</th>
+<th>Tahun</th>
+${fields.map(f=>`<th>${f.label}</th>`).join('')}
+<th>Total</th>
+<th>Aksi</th>
+</tr>
+</thead>
+<tbody id="tbDesa"></tbody>
+</table>
+</div>
+`;
+
+document.getElementById("bulanSelect").addEventListener("change",autoIsi);
+
+const form=document.getElementById("formDesaForm");
+
+form.onsubmit=function(e){
+e.preventDefault();
+
+let obj={
+bulan:form.bulan.value,
+tahun:form.tahun.value
+};
+
+let cek=data[desaFix].findIndex(d=>d.bulan===obj.bulan && d.tahun==obj.tahun);
+
+fields.forEach(f=>{
+obj[f.key]=+form[f.key].value||0;
+});
+
+if(modeEdit && editIndex!==null){
+data[desaFix][editIndex]=obj;
+modeEdit=false;
+editIndex=null;
+alert("✅ Data diubah");
+}else{
+if(cek!==-1){
+alert("⚠️ Sudah ada!");
+return;
+}
+data[desaFix].push(obj);
+alert("✅ Disimpan");
+}
+
+save();
+render();
+form.reset();
+};
+
+render();
+}
+
+// ===== AUTO ISI DARI BULAN SEBELUMNYA =====
+function autoIsi(){
+
+const form=document.getElementById("formDesaForm");
+const bulanDipilih=form.bulan.value;
+const tahunDipilih=form.tahun.value;
+
+const indexBulan = bulanList.indexOf(bulanDipilih);
+
+if(indexBulan <= 0) return;
+
+const bulanSebelumnya = bulanList[indexBulan - 1];
+
+const dataLama = data[desaFix].find(d => 
+    d.bulan === bulanSebelumnya && d.tahun == tahunDipilih
+);
+
+if(dataLama){
+    fields.forEach(f=>{
+        form[f.key].value = dataLama[f.key] || 0;
+    });
+}else{
+    fields.forEach(f=>{
+        form[f.key].value = "";
+    });
+}
+
+}
+
+// ===== FUNGSI LAIN =====
+function modeTetap(){ alert("Fungsi tetap aktif"); }
+function modeUbah(){ alert("Klik edit pada tabel"); }
+
+function render(){
+const tb=document.getElementById("tbDesa");
+if(!tb) return;
+
+tb.innerHTML="";
+
+data[desaFix].forEach((r,i)=>{
+let total=fields.reduce((s,f)=>s+(r[f.key]||0),0);
+
+tb.innerHTML+=`
+<tr>
+<td>${i+1}</td>
+<td>${r.bulan}</td>
+<td>${r.tahun}</td>
+${fields.map(f=>`<td>${r[f.key]}</td>`).join('')}
+<td>${total}</td>
+<td>
+<button onclick="deleteRow(${i})" class="btn-hapus">Hapus</button>
+</td>
+</tr>`;
+});
+}
+
+window.deleteRow=function(i){
+if(!confirm("Hapus data?")) return;
+data[desaFix].splice(i,1);
+save();
+render();
+};
+
+function exportPDF(){ alert("Export aktif"); }
+
+document.addEventListener("DOMContentLoaded", formDesa);
+
+</script>
+
+<!-- 🔥 FIREBASE + NOTIF -->
+<script type="module">
+import { simpan, baca } from "./firebase.js";
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "tandandesa-d4116.firebaseapp.com",
+  databaseURL: "https://tandandesa-d4116-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tandandesa-d4116",
+};
+
+const appNotif = initializeApp(firebaseConfig, "notifApp");
+const dbNotif = getDatabase(appNotif);
+
+// ambil data
+baca("desa/infrastruktur_jalan/" + desaFix, (fbData)=>{
+  if(!fbData) return;
+  data[desaFix] = Array.isArray(fbData)?fbData:Object.values(fbData);
+  render();
+});
+
+// override save + tambah notif
+const saveLama = save;
+
+save = function(){
+  saveLama();
+  simpan("desa/infrastruktur_jalan/" + desaFix, data[desaFix]);
+
+  push(ref(dbNotif,"notifikasi"),{
+    desa: desaFix,
+    jenis: "Infrastruktur Jalan",
+    waktu: new Date().toLocaleString()
+  });
+}
+</script>
+
+</body>
+</html>

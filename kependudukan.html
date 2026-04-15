@@ -1,0 +1,318 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Kependudukan Desa</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+:root{--primary:#0a7c6b;}
+body{font-family:'Poppins',sans-serif;background:#f4f7f7;margin:0;padding:10px;}
+#main-content{max-width:1200px;margin:auto;background:white;padding:15px;border-radius:12px;}
+h3{text-align:center;color:var(--primary);}
+.form-item{display:flex;flex-direction:column;margin-bottom:12px;}
+.form-item label{font-size:14px;font-weight:600;margin-bottom:5px;}
+
+.form-item > div{width:100%;max-width:520px;}
+
+.lpt-label{
+display:grid;
+grid-template-columns:80px 80px 100px;
+gap:10px;
+text-align:center;
+margin-bottom:4px;
+font-weight:600;
+}
+
+.input-lpt{
+display:grid;
+grid-template-columns:80px 80px 100px;
+gap:10px;
+}
+
+.input-lpt input{
+height:42px;
+text-align:center;
+border:1px solid #ccc;
+border-radius:6px;
+}
+
+input,select{
+padding:12px;
+border:1px solid #ccc;
+border-radius:8px;
+width:100%;
+}
+
+button{
+padding:12px;
+border:none;
+border-radius:10px;
+color:white;
+background:var(--primary);
+margin-top:5px;
+width:100%;
+}
+
+.table-wrapper{overflow-x:auto;margin-top:15px;}
+table{width:100%;border-collapse:collapse;font-size:12px;}
+th,td{border:1px solid #ddd;padding:6px;text-align:center;}
+th{background:var(--primary);color:white;}
+
+.btn-edit{background:#ffc107;color:black;padding:4px 8px;border:none;border-radius:6px;}
+.btn-hapus{background:#dc3545;color:white;padding:4px 8px;border:none;border-radius:6px;}
+</style>
+</head>
+
+<body>
+<div id="main-content"></div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, set, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+apiKey:"AIzaSy...",
+authDomain:"tandandesa-d4116.firebaseapp.com",
+databaseURL:"https://tandandesa-d4116-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId:"tandandesa-d4116"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ===== DESA =====
+const params=new URLSearchParams(window.location.search);
+let desa=params.get("wilayah");
+let desaFix=desa ? desa.toUpperCase() : "";
+
+if(!desa){
+alert("Desa tidak dipilih!");
+location.href="awal.html";
+}
+
+// ===== DATA =====
+const bulanList=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const tahunList=[2026,2027,2028,2029,2030];
+
+const fields=[
+{key:"penduduk_awal"},
+{key:"lahir"},
+{key:"meninggal"},
+{key:"pendatang"},
+{key:"pindah"}
+];
+
+let data=[];
+let editIndex=null;
+let modeEdit=false;
+
+// ===== AUTO ISI =====
+function autoIsiPenduduk(){
+
+const form=document.getElementById("formDesaForm");
+
+let bulan=form.bulan.value;
+let index=bulanList.indexOf(bulan);
+if(index<=0) return;
+
+let prev=data[index-1];
+if(!prev) return;
+
+let akhirL=(prev.penduduk_awal.l+prev.lahir.l+prev.pendatang.l)-(prev.meninggal.l+prev.pindah.l);
+let akhirP=(prev.penduduk_awal.p+prev.lahir.p+prev.pendatang.p)-(prev.meninggal.p+prev.pindah.p);
+
+form["penduduk_awal_l"].value=akhirL;
+form["penduduk_awal_p"].value=akhirP;
+form["penduduk_awal_t"].value=akhirL+akhirP;
+}
+
+// ===== FORM =====
+function formDesa(){
+
+const c=document.getElementById("main-content");
+
+c.innerHTML=`
+<h3>DESA ${desaFix}</h3>
+
+<form id="formDesaForm">
+
+<select name="bulan">${bulanList.map(b=>`<option>${b}</option>`)}</select>
+<select name="tahun">${tahunList.map(t=>`<option>${t}</option>`)}</select>
+
+${fields.map(f=>`
+<div class="form-item">
+<label>${f.key.replace("_"," ").toUpperCase()}</label>
+<div>
+<div class="lpt-label"><div>L</div><div>P</div><div>T</div></div>
+<div class="input-lpt">
+<input type="number" name="${f.key}_l">
+<input type="number" name="${f.key}_p">
+<input type="number" name="${f.key}_t" readonly>
+</div>
+</div>
+</div>`).join('')}
+
+<button type="submit">Simpan</button>
+</form>
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>No</th><th>Bulan</th><th>Tahun</th>
+${fields.map(f=>`<th colspan="3">${f.key.replace("_"," ").toUpperCase()}</th>`).join('')}
+<th colspan="3">AKHIR</th>
+<th>Aksi</th>
+</tr>
+<tr>
+<th></th><th></th><th></th>
+${fields.map(()=>`<th>L</th><th>P</th><th>T</th>`).join('')}
+<th>L</th><th>P</th><th>T</th>
+<th></th>
+</tr>
+</thead>
+<tbody id="tb"></tbody>
+</table>
+</div>
+`;
+
+const form=document.getElementById("formDesaForm");
+
+// HITUNG
+fields.forEach(f=>{
+const l=form.querySelector(`[name="${f.key}_l"]`);
+const p=form.querySelector(`[name="${f.key}_p"]`);
+const t=form.querySelector(`[name="${f.key}_t"]`);
+function hitung(){ t.value=(+l.value||0)+(+p.value||0); }
+l.oninput=hitung; p.oninput=hitung;
+});
+
+// 🔥 AKTIFKAN AUTO ISI
+form.bulan.addEventListener("change", autoIsiPenduduk);
+
+// ===== SIMPAN =====
+form.onsubmit=async function(e){
+e.preventDefault();
+
+let obj={bulan:form.bulan.value,tahun:form.tahun.value};
+
+fields.forEach(f=>{
+obj[f.key]={
+l:+form[`${f.key}_l`].value||0,
+p:+form[`${f.key}_p`].value||0,
+t:+form[`${f.key}_t`].value||0
+};
+});
+
+if(modeEdit && editIndex!==null){
+data[editIndex]=obj;
+modeEdit=false;
+editIndex=null;
+}else{
+data.push(obj);
+}
+
+// NOTIF
+push(ref(db,"notifikasi"),{
+desa: desaFix,
+jenis: "Kependudukan",
+bulan: obj.bulan,
+tahun: obj.tahun,
+waktu: new Date().toLocaleString()
+});
+
+await set(ref(db,"desa/kependudukan/"+desaFix),data);
+
+form.reset();
+};
+}
+
+// ===== REALTIME =====
+onValue(ref(db,"desa/kependudukan/"+desaFix),snap=>{
+data=snap.val()?Object.values(snap.val()):[];
+render();
+});
+
+// ===== RENDER =====
+function render(){
+
+const tb=document.getElementById("tb");
+if(!tb) return;
+
+tb.innerHTML="";
+
+data.forEach((r,i)=>{
+
+let akhirL=(r.penduduk_awal.l+r.lahir.l+r.pendatang.l)-(r.meninggal.l+r.pindah.l);
+let akhirP=(r.penduduk_awal.p+r.lahir.p+r.pendatang.p)-(r.meninggal.p+r.pindah.p);
+
+tb.innerHTML+=`
+<tr>
+<td>${i+1}</td>
+<td>${r.bulan}</td>
+<td>${r.tahun}</td>
+
+${fields.map(f=>`
+<td>${r[f.key].l}</td>
+<td>${r[f.key].p}</td>
+<td>${r[f.key].t}</td>
+`).join('')}
+
+<td>${akhirL}</td>
+<td>${akhirP}</td>
+<td>${akhirL+akhirP}</td>
+
+<td>
+<button class="btn-edit" onclick="editRow(${i})">Edit</button>
+<button class="btn-hapus" onclick="deleteRow(${i})">Hapus</button>
+</td>
+</tr>`;
+});
+}
+
+// ===== EDIT =====
+window.editRow=function(i){
+const r=data[i];
+const form=document.getElementById("formDesaForm");
+
+form.bulan.value=r.bulan;
+form.tahun.value=r.tahun;
+
+fields.forEach(f=>{
+form[`${f.key}_l`].value=r[f.key].l;
+form[`${f.key}_p`].value=r[f.key].p;
+form[`${f.key}_t`].value=r[f.key].t;
+});
+
+editIndex=i;
+modeEdit=true;
+window.scrollTo({top:0});
+};
+
+// ===== DELETE =====
+window.deleteRow=async function(i){
+
+if(!confirm("Hapus data?")) return;
+
+data.splice(i,1);
+
+push(ref(db,"notifikasi"),{
+desa: desaFix,
+jenis:"Kependudukan",
+aksi:"Hapus Data",
+waktu:new Date().toLocaleString()
+});
+
+await set(ref(db,"desa/kependudukan/"+desaFix),data);
+};
+
+// INIT
+formDesa();
+
+</script>
+</body>
+</html>

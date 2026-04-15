@@ -1,0 +1,323 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Keagamaan Kecamatan</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root{
+--primary:#0a7c6b;
+--bg:#f4f7f7;
+}
+
+body{
+font-family:'Poppins',Arial;
+margin:0;
+padding:10px;
+background:var(--bg);
+}
+
+h3{
+text-align:center;
+color:var(--primary);
+font-size:18px;
+margin-bottom:10px;
+}
+
+.filter-box{
+background:white;
+padding:12px;
+border-radius:14px;
+margin-bottom:12px;
+display:flex;
+flex-direction:column;
+gap:10px;
+}
+
+select,button{
+padding:12px;
+border-radius:12px;
+border:1px solid #ccc;
+font-size:14px;
+}
+
+button{
+border:none;
+font-weight:bold;
+cursor:pointer;
+}
+
+.btn-filter{background:#0a7c6b;color:white;}
+.btn-pdf{background:#1976d2;color:white;}
+
+.table-wrapper{
+overflow-x:auto;
+background:white;
+border-radius:14px;
+}
+
+table{
+width:100%;
+min-width:700px;
+border-collapse:collapse;
+font-size:12px;
+}
+
+th,td{
+border:1px solid #eee;
+padding:6px;
+text-align:center;
+}
+
+th{
+background:var(--primary);
+color:white;
+}
+
+tfoot td{
+background:#e0f2f1;
+font-weight:bold;
+}
+
+canvas{
+margin-top:15px;
+background:white;
+padding:10px;
+border-radius:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="main-content"></div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "tandandesa-d4116.firebaseapp.com",
+  databaseURL: "https://tandandesa-d4116-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tandandesa-d4116"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ===== DATA =====
+const desaList=[
+"BOTOLINGGO","SUMBER CANTING","GAYAM","GAYAM LOR",
+"KLEKEAN","PENANG","LANAS","LUMUTAN"
+];
+
+const bulanList=[
+"Januari","Februari","Maret","April","Mei","Juni",
+"Juli","Agustus","September","Oktober","November","Desember"
+];
+
+const tahunList=[2026,2027,2028,2029,2030];
+
+const fields=[
+{key:"masjid",label:"Masjid"},
+{key:"masjid_bantuan",label:"Masjid Butuh Bantuan"},
+{key:"musholla",label:"Musholla"},
+{key:"musholla_bantuan",label:"Musholla Butuh Bantuan"},
+{key:"pesantren",label:"Pesantren"},
+{key:"guru_ngaji",label:"Guru Ngaji"}
+];
+
+let chart;
+let dataRealtime={};
+
+// ===== INIT =====
+function init(){
+
+document.getElementById("main-content").innerHTML=`
+<h3>DATA KEAGAMAAN KECAMATAN</h3>
+
+<div class="filter-box">
+<select id="filterBulan">
+<option value="">SEMUA BULAN</option>
+${bulanList.map(b=>`<option>${b}</option>`).join('')}
+</select>
+
+<select id="filterTahun">
+<option value="">SEMUA TAHUN</option>
+${tahunList.map(t=>`<option>${t}</option>`).join('')}
+</select>
+
+<button class="btn-filter" onclick="render()">Filter</button>
+<button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
+</div>
+
+<div class="table-wrapper">
+<table id="tableData">
+<thead>
+<tr>
+<th>No</th>
+<th>Desa</th>
+<th>Bulan</th>
+<th>Tahun</th>
+${fields.map(f=>`<th>${f.label}</th>`).join('')}
+<th>Total</th>
+</tr>
+</thead>
+<tbody id="tb"></tbody>
+<tfoot id="tf"></tfoot>
+</table>
+</div>
+
+<canvas id="chart"></canvas>
+`;
+}
+
+// ===== REALTIME =====
+onValue(ref(db,"desa/keagamaan"), (snapshot)=>{
+const fbData = snapshot.val();
+if(!fbData) return;
+dataRealtime = fbData;
+render();
+});
+
+// ===== RENDER =====
+window.render=function(){
+
+const tb=document.getElementById("tb");
+const tf=document.getElementById("tf");
+if(!tb) return;
+
+const fB=document.getElementById("filterBulan").value;
+const fT=document.getElementById("filterTahun").value;
+
+tb.innerHTML="";
+tf.innerHTML="";
+
+let no=0;
+let totalField={};
+fields.forEach(f=>totalField[f.key]=0);
+let totalAll=0;
+
+let totalPerDesa={};
+desaList.forEach(d=>totalPerDesa[d]=0);
+
+desaList.forEach(desa=>{
+
+const rows=(dataRealtime[desa]||[]).filter(r=>
+(!fB||r.bulan===fB)&&(!fT||r.tahun==fT)
+);
+
+rows.forEach(r=>{
+no++;
+
+let totalRow=0;
+
+fields.forEach(f=>{
+let val=Number(r[f.key]||0);
+totalField[f.key]+=val;
+totalRow+=val;
+totalPerDesa[desa]+=val;
+});
+
+totalAll+=totalRow;
+
+tb.innerHTML+=`
+<tr>
+<td>${no}</td>
+<td>${desa}</td>
+<td>${r.bulan}</td>
+<td>${r.tahun}</td>
+${fields.map(f=>`<td>${r[f.key]||0}</td>`).join('')}
+<td>${totalRow}</td>
+</tr>`;
+});
+
+});
+
+if(no===0){
+tb.innerHTML=`<tr><td colspan="100%">DATA BELUM ADA</td></tr>`;
+}
+
+tf.innerHTML=`
+<tr>
+<td colspan="4">TOTAL</td>
+${fields.map(f=>`<td>${totalField[f.key]}</td>`).join('')}
+<td>${totalAll}</td>
+</tr>
+`;
+
+// ===== CHART (DITAMBAHKAN) =====
+if(chart) chart.destroy();
+
+chart=new Chart(document.getElementById("chart"),{
+type:'bar',
+data:{
+labels:desaList,
+datasets:[{
+label:"Total Keagamaan",
+data:desaList.map(d=>totalPerDesa[d]),
+backgroundColor:[
+"#ef5350",
+"#42a5f5",
+"#66bb6a",
+"#ffa726",
+"#ab47bc",
+"#26c6da",
+"#d4e157",
+"#8d6e63"
+],
+borderRadius:6,
+barThickness:30
+}]
+},
+options:{
+responsive:true,
+plugins:{
+legend:{display:true},
+tooltip:{enabled:true}
+},
+scales:{
+y:{
+beginAtZero:true,
+ticks:{precision:0}
+}
+}
+}
+});
+}
+
+// ===== PDF =====
+window.exportPDF=function(){
+
+const { jsPDF } = window.jspdf;
+let doc = new jsPDF({orientation:"landscape"});
+
+let body=[];
+document.querySelectorAll("#tableData tbody tr").forEach(tr=>{
+let row=[];
+tr.querySelectorAll("td").forEach(td=>row.push(td.innerText));
+body.push(row);
+});
+
+doc.autoTable({
+head:[["No","Desa","Bulan","Tahun",...fields.map(f=>f.label),"Total"]],
+body:body
+});
+
+doc.save("keagamaan_kecamatan.pdf");
+}
+
+// START
+init();
+
+</script>
+
+</body>
+</html>

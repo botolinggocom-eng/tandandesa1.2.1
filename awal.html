@@ -1,0 +1,201 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>TANDAN DESA</title>
+
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #f4f7f7;
+}
+
+/* BACK */
+.btn-back{
+    padding:15px;
+}
+
+.back-btn{
+    text-decoration:none;
+    color:#0a7c6b;
+    background:white;
+    padding:8px 14px;
+    border-radius:20px;
+    box-shadow:0 4px 10px rgba(0,0,0,0.1);
+    font-size:14px;
+}
+
+/* HEADER */
+.header {
+    padding: 15px;
+}
+
+.header p {
+    margin: 0;
+    font-size: 12px;
+}
+
+.header h2 {
+    margin: 5px 0;
+    color: #0a7c6b;
+    font-size: 18px;
+}
+
+/* TITLE */
+.title {
+    padding: 0 15px;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+/* LIST */
+.list {
+    padding: 15px;
+    padding-bottom: 40px;
+}
+
+/* ITEM */
+.item {
+    background: #d8efec;
+    border-radius: 20px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: black;
+    transition: 0.2s;
+    cursor: pointer;
+}
+
+.item:hover {
+    transform: scale(1.02);
+    background: #c6e7e3;
+}
+
+.item img {
+    width: 50px;
+    height: 50px;
+    border-radius: 50%;
+    margin-right: 15px;
+}
+
+.item span {
+    font-size: 16px;
+    font-weight: 500;
+}
+</style>
+
+</head>
+
+<body>
+
+<!-- BACK / LOGOUT -->
+<div class="btn-back">
+    <a href="#" onclick="goBack()" class="back-btn">← Kembali</a>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+    <p id="tanggal"></p>
+    <h2 id="judulUser"></h2>f
+</div>
+
+<!-- TITLE -->
+<div class="title">Silahkan Pilih Desa</div>
+
+<!-- LIST DESA -->
+<div class="list" id="listDesa"></div>
+
+<script>
+
+// ===== CEK LOGIN =====
+const user = JSON.parse(localStorage.getItem("user"));
+
+// kalau belum login
+if(!user){
+    window.location.href = "index.html";
+}
+
+// ===== HEADER USER =====
+if(user.role === "desa"){
+    document.getElementById("judulUser").innerText = "Halo, Admin " + user.desa + " 👋";
+}else{
+    document.getElementById("judulUser").innerText = "Halo, Admin Kecamatan 👋";
+}
+
+// ===== TANGGAL =====
+const hari = new Date().toLocaleDateString("id-ID", {
+    weekday: "long",
+    day: "numeric",
+    month: "long",
+    year: "numeric"
+});
+document.getElementById("tanggal").innerText = hari;
+
+
+// ===== DATA DESA =====
+const desaList = [
+"BOTOLINGGO",
+"SUMBER CANTING",
+"GAYAM",
+"GAYAM LOR",
+"KLEKEAN",
+"PENANG",
+"LANAS",
+"LUMUTAN"
+];
+
+const list = document.getElementById("listDesa");
+
+// ===== RENDER LIST =====
+desaList.forEach(desa => {
+
+    list.innerHTML += `
+    <div onclick="bukaDesa('${desa}')" class="item">
+       <img src="https://cdn-icons-png.flaticon.com/512/1999/1999625.png">
+        <span>${desa}</span>
+    </div>
+    `;
+});
+
+// ===== MASUK DESA (TANPA PASSWORD) =====
+function bukaDesa(desa){
+
+const user = JSON.parse(localStorage.getItem("user"));
+
+// kalau login sebagai desa
+if(user.role === "desa"){
+
+    if(user.desa !== desa){
+        alert("❌ Anda tidak punya akses ke desa ini!");
+        return;
+    }
+
+    window.location.href = "desa.html?wilayah=" + encodeURIComponent(desa);
+}
+
+// kalau kecamatan → bebas
+else if(user.role === "kecamatan"){
+    window.location.href = "desa.html?wilayah=" + encodeURIComponent(desa);
+}
+
+}
+
+// ===== LOGOUT =====
+function goBack(){
+    if(document.referrer !== ""){
+        window.history.back();
+    }else{
+        window.location.href = "index.html";
+    }
+}
+
+</script>
+
+</body>
+</html>

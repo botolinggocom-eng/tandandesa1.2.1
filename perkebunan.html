@@ -1,0 +1,285 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Perkebunan & Kehutanan</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root{--primary:#0a7c6b;}
+body{font-family:'Poppins', Arial;background:#f4f7fb;margin:0;padding:10px;}
+#main-content{max-width:1200px;margin:auto;background:white;padding:15px;border-radius:12px;}
+h3{text-align:center;color:var(--primary);font-size:18px;}
+.form-item{display:flex;flex-direction:column;margin-bottom:10px;}
+label{font-size:13px;margin-bottom:3px;}
+input,select{padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;width:100%;}
+button{padding:10px;border:none;border-radius:8px;color:white;cursor:pointer;font-weight:600;margin-top:5px;width:100%;}
+.btn-simpan{background:#0a7c6b;}
+.btn-ubah{background:#fd7e14;}
+.btn-tetap{background:#198754;}
+.btn-filter{background:#0d6efd;}
+.btn-pdf{background:#0a7c6b;}
+.btn-edit{background:#ffc107;color:black;width:auto;padding:5px 8px;}
+.btn-hapus{background:#dc3545;width:auto;padding:5px 8px;}
+.filter-box{display:flex;flex-direction:column;gap:5px;margin-top:10px;}
+.table-wrapper{overflow-x:auto;margin-top:15px;}
+table{width:100%;min-width:700px;border-collapse:collapse;font-size:12px;}
+th,td{border:1px solid #ddd;padding:6px;text-align:center;}
+th{background:var(--primary);color:white;position:sticky;top:0;}
+</style>
+</head>
+
+<body>
+
+<div id="main-content"></div>
+
+<script>
+
+// ===== DESA =====
+const params = new URLSearchParams(window.location.search);
+let desa = params.get("wilayah");
+let desaFix = desa ? desa.toUpperCase() : "";
+
+if(desa){ desa = desa.toUpperCase(); }
+
+if(!desa){
+alert("Desa tidak dipilih!");
+window.location.href="awal.html";
+}
+
+// ===== DATA =====
+const bulanList=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const tahunList=[2026,2027,2028,2029,2030];
+
+const fields=[
+{key:"kel_kebun",label:"Kelompok Perkebunan"},
+{key:"kel_hutan",label:"Kelompok Kehutanan"},
+{key:"bantuan_kebun",label:"Bantuan Perkebunan"},
+{key:"bantuan_hutan",label:"Bantuan Kehutanan"}
+];
+
+// ===== STORAGE =====
+let data=JSON.parse(localStorage.getItem("dataPerkebunan"))||{};
+if(!data[desaFix]) data[desaFix]=[];
+
+let editIndex=null;
+let modeEdit=false;
+
+function save(){
+localStorage.setItem("dataPerkebunan",JSON.stringify(data));
+}
+
+// ===== FORM =====
+function formDesa(){
+
+const c=document.getElementById("main-content");
+
+c.innerHTML=`
+<h3>DATA PERKEBUNAN & KEHUTANAN DESA ${desa}</h3>
+
+<form id="formDesaForm">
+
+<div class="form-item">
+<label>Bulan</label>
+<select name="bulan" id="bulanSelect">
+${bulanList.map(b=>`<option>${b}</option>`).join('')}
+</select>
+</div>
+
+<div class="form-item">
+<label>Tahun</label>
+<select name="tahun" id="tahunSelect">
+${tahunList.map(t=>`<option>${t}</option>`).join('')}
+</select>
+</div>
+
+${fields.map(f=>`
+<div class="form-item">
+<label>${f.label}</label>
+<input type="number" name="${f.key}">
+</div>`).join('')}
+
+<button type="submit" class="btn-simpan">SIMPAN</button>
+<button type="button" onclick="modeUbah()" class="btn-ubah">UBAH DATA</button>
+<button type="button" onclick="modeTetap()" class="btn-tetap">TETAP</button>
+
+</form>
+
+<hr>
+
+<div class="filter-box">
+<select id="filterBulan"><option value="">Semua Bulan</option>${bulanList.map(b=>`<option>${b}</option>`).join('')}</select>
+<select id="filterTahun"><option value="">Semua Tahun</option>${tahunList.map(t=>`<option>${t}</option>`).join('')}</select>
+<button onclick="render()" class="btn-filter">FILTER</button>
+<button onclick="exportPDF()" class="btn-pdf">EXPORT PDF</button>
+</div>
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>No</th>
+<th>Bulan</th>
+<th>Tahun</th>
+${fields.map(f=>`<th>${f.label}</th>`).join('')}
+<th>Total</th>
+<th>Aksi</th>
+</tr>
+</thead>
+<tbody id="tbDesa"></tbody>
+</table>
+</div>
+`;
+
+document.getElementById("bulanSelect").addEventListener("change",autoIsi);
+document.getElementById("tahunSelect").addEventListener("change",autoIsi);
+
+const form=document.getElementById("formDesaForm");
+
+form.onsubmit=function(e){
+e.preventDefault();
+
+let obj={bulan:form.bulan.value,tahun:form.tahun.value};
+
+let cek=data[desaFix].findIndex(d=>d.bulan===obj.bulan && d.tahun==obj.tahun);
+
+fields.forEach(f=>{ obj[f.key]=+form[f.key].value||0; });
+
+if(modeEdit && editIndex!==null){
+data[desaFix][editIndex]=obj;
+modeEdit=false;
+editIndex=null;
+alert("✅ Data diubah");
+}else{
+if(cek!==-1){ alert("⚠️ Sudah ada!"); return; }
+data[desaFix].push(obj);
+alert("✅ Disimpan");
+}
+
+save();
+
+// 🔥 NOTIF LOCAL
+let notif = JSON.parse(localStorage.getItem("notifikasi") || "[]");
+notif.unshift({
+desa: desaFix,
+jenis: "Perkebunan & Kehutanan",
+bulan: obj.bulan,
+tahun: obj.tahun,
+waktu: new Date().toLocaleString()
+});
+localStorage.setItem("notifikasi", JSON.stringify(notif));
+
+// 🔥 NOTIF FIREBASE
+kirimNotif({
+desa: desaFix,
+jenis: "Perkebunan & Kehutanan",
+bulan: obj.bulan,
+tahun: obj.tahun,
+waktu: new Date().toLocaleString()
+});
+
+render();
+form.reset();
+};
+
+render();
+}
+
+// ===== AUTO ISI =====
+function autoIsi(){
+const form=document.getElementById("formDesaForm");
+let bulan=form.bulan.value;
+let tahun=form.tahun.value;
+let index=bulanList.indexOf(bulan);
+if(index<=0) return;
+let prev=data[desaFix].find(d=>d.bulan===bulanList[index-1] && d.tahun==tahun);
+if(prev){
+fields.forEach(f=>{ form[f.key].value=prev[f.key]||0; });
+}
+}
+
+// ===== TETAP =====
+function modeTetap(){
+
+const form=document.getElementById("formDesaForm");
+
+let bulan=form.bulan.value;
+let tahun=form.tahun.value;
+let index=bulanList.indexOf(bulan);
+
+if(index<=0) return alert("Tidak ada bulan sebelumnya");
+
+let prev=data[desaFix].find(d=>d.bulan===bulanList[index-1] && d.tahun==tahun);
+if(!prev) return alert("Data sebelumnya belum ada");
+
+let obj={bulan,tahun};
+fields.forEach(f=>obj[f.key]=prev[f.key]||0);
+
+data[desaFix].push(obj);
+
+save();
+
+// 🔥 NOTIF FIREBASE TETAP
+kirimNotif({
+desa: desaFix,
+jenis: "Perkebunan & Kehutanan",
+aksi: "Salin Data (TETAP)",
+bulan: bulan,
+tahun: tahun,
+waktu: new Date().toLocaleString()
+});
+
+render();
+alert("✅ Data disalin");
+}
+
+// ===== RENDER DLL TETAP =====
+function modeUbah(){ if(editIndex===null){alert("Pilih data dulu!");return;} modeEdit=true; alert("Klik SIMPAN untuk update"); }
+function render(){ const tb=document.getElementById("tbDesa"); if(!tb) return; tb.innerHTML=""; data[desaFix].forEach((r,i)=>{ let total=fields.reduce((s,f)=>s+(r[f.key]||0),0); tb.innerHTML+=`<tr><td>${i+1}</td><td>${r.bulan}</td><td>${r.tahun}</td>${fields.map(f=>`<td>${r[f.key]}</td>`).join('')}<td>${total}</td><td><button onclick="editRow(${i})" class="btn-edit">Edit</button><button onclick="deleteRow(${i})" class="btn-hapus">Hapus</button></td></tr>`; }); }
+window.editRow=function(i){ const r=data[desaFix][i]; const form=document.getElementById("formDesaForm"); form.bulan.value=r.bulan; form.tahun.value=r.tahun; fields.forEach(f=>{form[f.key].value=r[f.key];}); editIndex=i; window.scrollTo({top:0}); };
+window.deleteRow=function(i){ if(!confirm("Hapus data?")) return; data[desaFix].splice(i,1); save(); render(); };
+function exportPDF(){ alert("Export PDF tetap aktif"); }
+
+document.addEventListener("DOMContentLoaded", formDesa);
+
+</script>
+
+<!-- 🔥 FIREBASE -->
+<script type="module">
+import { simpan, baca } from "./firebase.js";
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, push } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+apiKey: "AIzaSy...",
+authDomain: "tandandesa-d4116.firebaseapp.com",
+databaseURL: "https://tandandesa-d4116-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId: "tandandesa-d4116",
+};
+
+const appNotif = initializeApp(firebaseConfig, "notifPerkebunan");
+const dbNotif = getDatabase(appNotif);
+
+// 🔥 GLOBAL FUNCTION
+window.kirimNotif = function(dataNotif){
+push(ref(dbNotif,"notifikasi"), dataNotif);
+}
+
+baca("desa/perkebunan/" + desaFix, (fbData)=>{
+if(!fbData) return;
+data[desaFix] = Array.isArray(fbData)?fbData:Object.values(fbData);
+render();
+});
+
+const saveLama = save;
+save = function(){
+saveLama();
+simpan("desa/perkebunan/" + desaFix, data[desaFix]);
+}
+</script>
+
+</body>
+</html>

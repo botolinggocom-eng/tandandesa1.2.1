@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Rekap Data Kecamatan</title>
+
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600;700&display=swap" rel="stylesheet">
+
+<style>
+*{margin:0;padding:0;box-sizing:border-box;}
+
+body{
+font-family:'Poppins', sans-serif;
+background:#f4f7f7;
+padding-bottom:20px;
+}
+
+.appbar{
+position:fixed;
+top:0;
+width:100%;
+background:linear-gradient(135deg,#0a7c6b,#0fb9a8);
+color:white;
+padding:16px 10px;
+text-align:center;
+z-index:10;
+}
+
+.appbar img{width:90px;margin-bottom:8px;}
+.title1{font-size:26px;font-weight:700;}
+.title2{font-size:17px;}
+.title3{font-size:16px;opacity:0.9;}
+
+.btn-back{padding:180px 15px 10px;}
+
+.back-btn{
+text-decoration:none;
+color:#0a7c6b;
+font-weight:500;
+background:white;
+padding:8px 14px;
+border-radius:20px;
+box-shadow:0 4px 10px rgba(0,0,0,0.1);
+}
+
+.title{
+padding:10px 15px;
+font-size:20px;
+font-weight:600;
+color:#0a7c6b;
+}
+
+.notif-box{
+margin:10px 15px;
+background:white;
+border-radius:15px;
+padding:10px;
+box-shadow:0 4px 10px rgba(0,0,0,0.08);
+max-height:200px;
+overflow:auto;
+cursor:pointer;
+}
+
+.notif-item{
+border-bottom:1px solid #eee;
+padding:6px 0;
+font-size:13px;
+}
+
+.list{padding:15px;}
+
+.item{
+background:#d8efec;
+border-radius:20px;
+padding:18px;
+margin-bottom:15px;
+display:flex;
+align-items:center;
+text-decoration:none;
+color:black;
+transition:0.2s;
+box-shadow:0 5px 15px rgba(0,0,0,0.08);
+}
+
+.item:hover{
+transform:scale(1.02);
+background:#c6e7e3;
+}
+
+.item i{
+font-size:26px;
+margin-right:15px;
+color:#0a7c6b;
+}
+
+.item span{
+font-size:16px;
+font-weight:500;
+}
+
+/* 🔔 POPUP */
+.popup{
+position:fixed;
+bottom:20px;
+right:20px;
+background:#0a7c6b;
+color:white;
+padding:15px 20px;
+border-radius:12px;
+box-shadow:0 5px 20px rgba(0,0,0,0.2);
+display:none;
+z-index:999;
+animation:fadeIn 0.5s;
+}
+
+@keyframes fadeIn{
+from{opacity:0;transform:translateY(20px);}
+to{opacity:1;transform:translateY(0);}
+}
+</style>
+</head>
+
+<body>
+
+<div class="appbar">
+<img src="tandan.png">
+<div class="appbar-text">
+<div class="title1">TANDAN DESA</div>
+<div class="title2">DATA DAN INFORMASI ADMINISTRASI DESA</div>
+<div class="title3">KEC. BOTOLINGGO KAB.BONDOWOSO</div>
+</div>
+</div>
+
+<div class="btn-back">
+<a href="javascript:void(0)" onclick="goBack()" class="back-btn">← Kembali</a>
+</div>
+
+<div class="title">Rekap Data Kecamatan</div>
+
+<!-- 🔔 NOTIF -->
+<div class="notif-box">
+<b>🔔 Notifikasi Data Masuk <span id="notifCount" style="color:red;"></span></b>
+<br><small>(klik untuk lihat)</small>
+<div id="notifList"></div>
+</div>
+
+<div class="list">
+<a href="kependudukan-kec.html" class="item"><i class='bx bx-data'></i><span>Data Kependudukan</span></a>
+<a href="bantuankec.html" class="item"><i class='bx bx-donate-heart'></i><span>Data Bantuan</span></a>
+<a href="kondisikhususkec.html" class="item"><i class='bx bx-user-pin'></i><span>Kondisi Khusus</span></a>
+<a href="produkcapilkec.html" class="item"><i class='bx bx-id-card'></i><span>Produkcapil</span></a>
+<a href="umkmkec.html" class="item"><i class='bx bx-store'></i><span>Data UMKM</span></a>
+<a href="akseskec.html" class="item"><i class='bx bx-health'></i><span>Akses Kesehatan</span></a>
+<a href="infrakec.html" class="item"><i class='bx bx-map'></i><span>Infrastruktur Jalan</span></a>
+<a href="keagamaankec.html" class="item"><i class='bx bx-building-house'></i><span>Keagamaan</span></a>
+<a href="pendidikankec.html" class="item"><i class='bx bx-book'></i><span>Pendidikan</span></a>
+<a href="pertaniankec.html" class="item"><i class='bx bx-leaf'></i><span>Pertanian Kecamatan</span></a>
+<a href="peternakan_perikanankec.html" class="item"><i class='bx bx-water'></i><span>Peternakan & Perikanan</span></a>
+<a href="perkebunankec.html" class="item"><i class='bx bx-tree'></i><span>Perkebunan & Kehutanan</span></a>
+
+<!-- 🔥 TAMBAHAN -->
+<a href="statistik-desa.html" class="item">
+<i class='bx bx-bar-chart-alt-2'></i>
+<span>Statistik Desa</span>
+</a>
+
+</div>
+
+<!-- 🔔 POPUP -->
+<div id="popupNotif" class="popup"></div>
+
+<script>
+function goBack(){
+if(document.referrer !== ""){
+window.history.back();
+}else{
+window.location.href = "index.html";
+}
+}
+
+let notifGlobal=[];
+let dibacaGlobal=0;
+let lastCount=0;
+
+function bunyiNotif(){
+let audio = new Audio("https://www.soundjay.com/buttons/sounds/button-3.mp3");
+audio.play();
+}
+
+function showPopup(text){
+let popup=document.getElementById("popupNotif");
+popup.innerText=text;
+popup.style.display="block";
+
+setTimeout(()=>{
+popup.style.display="none";
+},4000);
+}
+
+function renderNotif(){
+const box=document.getElementById("notifList");
+const count=document.getElementById("notifCount");
+
+box.innerHTML="";
+
+let jumlahBaru=notifGlobal.length - dibacaGlobal;
+count.innerHTML=jumlahBaru>0?`(${jumlahBaru})`:"";
+
+notifGlobal.slice(0,10).forEach((n)=>{
+box.innerHTML+=`
+<div class="notif-item">
+<b>${n.desa}</b> - ${n.jenis}<br>
+<small>${n.bulan} ${n.tahun}</small>
+</div>`;
+});
+}
+
+function cekNotifBaru(){
+if(notifGlobal.length > lastCount){
+let baru = notifGlobal[0];
+bunyiNotif();
+showPopup(`🔔 Data masuk: ${baru.desa} - ${baru.jenis}`);
+}
+lastCount = notifGlobal.length;
+}
+
+window.onload=function(){
+
+document.getElementById("notifList").style.display="none";
+
+document.querySelector(".notif-box").addEventListener("click", function(){
+
+let password = prompt("Password admin:");
+
+if(password==="111"){
+set(ref(db,"notif_dibaca"), notifGlobal.length);
+document.getElementById("notifList").style.display="block";
+renderNotif();
+}else{
+alert("Salah!");
+}
+
+});
+
+};
+</script>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, set } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+apiKey:"AIzaSy...",
+authDomain:"tandandesa-d4116.firebaseapp.com",
+databaseURL:"https://tandandesa-d4116-default-rtdb.asia-southeast1.firebasedatabase.app",
+projectId:"tandandesa-d4116"
+};
+
+const app=initializeApp(firebaseConfig);
+const db=getDatabase(app);
+
+window.db=db;
+window.ref=ref;
+window.set=set;
+
+onValue(ref(db,"notifikasi"),snap=>{
+const data=snap.val();
+notifGlobal = data ? Object.values(data).reverse() : [];
+cekNotifBaru();
+renderNotif();
+});
+
+onValue(ref(db,"notif_dibaca"),snap=>{
+dibacaGlobal = snap.val()||0;
+renderNotif();
+});
+
+</script>
+
+</body>
+</html>

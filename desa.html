@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title id="pageTitle">Desa</title>
+
+<link href='https://unpkg.com/boxicons@2.1.4/css/boxicons.min.css' rel='stylesheet'>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap" rel="stylesheet">
+
+<style>
+body {
+    margin: 0;
+    font-family: 'Poppins', sans-serif;
+    background: #f4f7f7;
+}
+
+/* HEADER */
+.header {
+    padding: 15px;
+}
+
+.header p {
+    margin: 0;
+    font-size: 12px;
+}
+
+.header h2 {
+    margin: 5px 0;
+    color: #0a7c6b;
+    font-size: 18px;
+}
+
+/* TITLE */
+.title {
+    padding: 0 15px;
+    font-size: 22px;
+    font-weight: 600;
+}
+
+/* LIST */
+.list {
+    padding: 15px;
+}
+
+/* ITEM */
+.item {
+    background: #d8efec;
+    border-radius: 20px;
+    padding: 15px;
+    margin-bottom: 15px;
+    display: flex;
+    align-items: center;
+    text-decoration: none;
+    color: black;
+    transition: 0.2s;
+}
+
+.item:hover {
+    background: #bfe3df;
+}
+
+.item i {
+    font-size: 28px;
+    margin-right: 15px;
+    color: #0a7c6b;
+}
+
+.item span {
+    font-size: 16px;
+    font-weight: 500;
+}
+
+/* BACK BUTTON */
+.btn-back {
+    padding: 15px;
+}
+
+.back-btn {
+    text-decoration: none;
+    color: #0a7c6b;
+    font-weight: 500;
+}
+
+/* NAVBAR */
+.navbar {
+    position: fixed;
+    bottom: 0;
+    width: 100%;
+    background: #0a7c6b;
+    display: flex;
+    justify-content: space-around;
+    padding: 10px 0;
+    color: white;
+}
+
+.navbar div {
+    text-align: center;
+    font-size: 12px;
+}
+</style>
+</head>
+
+<body>
+
+<!-- BACK -->
+<div class="btn-back">
+    <a href="awal.html" class="back-btn">← Kembali</a>
+</div>
+
+<!-- HEADER -->
+<div class="header">
+    <p id="tanggal"></p>
+    <h2 id="namaDesa">DESA</h2>
+</div>
+
+<!-- TITLE -->
+<div class="title">Input Data Desa</div>
+
+<!-- LIST MENU -->
+<div class="list">
+
+    <a id="linkKepen" class="item">
+        <i class='bx bx-data'></i>
+        <span>Data Kependudukan</span>
+    </a>
+
+    <a id="linkBantuan" class="item">
+        <i class='bx bx-donate-heart'></i>
+        <span>Data Bantuan</span>
+    </a>
+
+    <a id="linkKondisi" class="item">
+        <i class='bx bx-user-pin'></i>
+        <span>Kondisi Khusus</span>
+    </a>
+
+    <a id="linkProduk" class="item">
+        <i class='bx bx-id-card'></i>
+        <span>Produkcapil</span>
+    </a>
+
+    <a id="linkUMKM" class="item">
+        <i class='bx bx-store'></i>
+        <span>Data UMKM</span>
+    </a>
+
+    <a id="linkAkses" class="item">
+        <i class='bx bx-health'></i>
+        <span>Akses Kesehatan</span>
+    </a>
+
+    <a id="linkJalan" class="item">
+        <i class='bx bx-map'></i>
+        <span>Infrastruktur Jalan</span>
+    </a>
+
+    <a id="linkAgama" class="item">
+        <i class='bx bx-building-house'></i>
+        <span>Keagamaan</span>
+    </a>
+
+    <a id="linkPendidikan" class="item">
+        <i class='bx bx-book'></i>
+        <span>Pendidikan</span>
+    </a>
+
+    <a id="linkPertanian" class="item">
+        <i class='bx bx-leaf'></i>
+        <span>Pertanian</span>
+    </a>
+
+    <a id="linkPeternakan" class="item">
+        <i class='bx bx-bug'></i>
+        <span>Peternakan & Perikanan</span>
+    </a>
+
+    <a id="linkPerkebunan" class="item">
+        <i class='bx bx-leaf'></i>
+        <span>Perkebunan & Kehutanan</span>
+    </a>
+
+</div>
+
+<script>
+
+// ================= TANGGAL =================
+const today = new Date();
+document.getElementById("tanggal").innerText =
+    today.toLocaleDateString('id-ID', {
+        weekday: 'long',
+        day: 'numeric',
+        month: 'long',
+        year: 'numeric'
+    });
+
+// ================= DATA DESA =================
+const daftarDesa=[
+"BOTOLINGGO",
+"SUMBER CANTING",
+"GAYAM",
+"GAYAM LOR",
+"KLEKEAN",
+"PENANG",
+"LANAS",
+"LUMUTAN"
+];
+
+// ================= AMBIL PARAMETER =================
+const urlParams=new URLSearchParams(window.location.search);
+let wilayah=urlParams.get('wilayah');
+
+if(wilayah){wilayah=wilayah.toUpperCase();}
+if(!daftarDesa.includes(wilayah)){wilayah="BOTOLINGGO";}
+
+// ================= SET JUDUL =================
+document.getElementById("namaDesa").innerText="Desa "+wilayah;
+document.getElementById("pageTitle").innerText="Desa "+wilayah;
+
+// ================= LINK =================
+const w = encodeURIComponent(wilayah);
+
+document.getElementById("linkKepen").href = "kependudukan.html?wilayah="+w;
+document.getElementById("linkBantuan").href = "bantuan.html?wilayah="+w;
+document.getElementById("linkKondisi").href = "kondisikhusus.html?wilayah="+w;
+document.getElementById("linkProduk").href = "produkcapil.html?wilayah="+w;
+document.getElementById("linkUMKM").href = "umkm.html?wilayah="+w;
+document.getElementById("linkAkses").href = "akses.html?wilayah="+w;
+document.getElementById("linkJalan").href = "infra.html?wilayah="+w;
+document.getElementById("linkAgama").href = "keagamaan.html?wilayah="+w;
+document.getElementById("linkPertanian").href = "pertanian.html?wilayah="+w;
+document.getElementById("linkPeternakan").href = "peternakan_perikanan.html?wilayah="+w;
+document.getElementById("linkPerkebunan").href = "perkebunan.html?wilayah="+w;
+document.getElementById("linkPendidikan").href = "pendidikan.html?wilayah="+w;
+
+</script>
+
+</body>
+</html>

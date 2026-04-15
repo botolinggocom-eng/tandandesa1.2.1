@@ -1,0 +1,294 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Keagamaan Desa</title>
+
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root{--primary:#0a7c6b;}
+body{font-family:'Poppins', Arial;background:#f4f7fb;margin:0;padding:10px;}
+#main-content{max-width:1200px;margin:auto;background:white;padding:15px;border-radius:12px;}
+h3{text-align:center;color:var(--primary);font-size:18px;}
+.form-item{display:flex;flex-direction:column;margin-bottom:10px;}
+label{font-size:13px;margin-bottom:3px;}
+input, select{padding:10px;border:1px solid #ccc;border-radius:8px;font-size:14px;width:100%;}
+button{padding:10px;border:none;border-radius:8px;color:white;cursor:pointer;font-weight:600;margin-top:5px;width:100%;}
+.btn-simpan{background:#0a7c6b;}
+.btn-ubah{background:#fd7e14;}
+.btn-tetap{background:#198754;}
+.btn-filter{background:#0d6efd;}
+.btn-pdf{background:#0a7c6b;}
+.btn-edit{background:#ffc107;color:black;width:auto;padding:5px 8px;}
+.btn-hapus{background:#dc3545;width:auto;padding:5px 8px;}
+.table-wrapper{overflow-x:auto;margin-top:15px;}
+table{width:100%;min-width:700px;border-collapse:collapse;font-size:12px;}
+th,td{border:1px solid #ddd;padding:6px;text-align:center;}
+th{background:var(--primary);color:white;position:sticky;top:0;}
+</style>
+</head>
+
+<body>
+
+<div id="main-content"></div>
+
+<script type="module">
+
+import { initializeApp } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-app.js";
+import { getDatabase, ref, onValue, set, push, get } from "https://www.gstatic.com/firebasejs/10.7.1/firebase-database.js";
+
+const firebaseConfig = {
+  apiKey: "AIzaSy...",
+  authDomain: "tandandesa-d4116.firebaseapp.com",
+  databaseURL: "https://tandandesa-d4116-default-rtdb.asia-southeast1.firebasedatabase.app",
+  projectId: "tandandesa-d4116"
+};
+
+const app = initializeApp(firebaseConfig);
+const db = getDatabase(app);
+
+// ===== DESA =====
+const params = new URLSearchParams(window.location.search);
+let desaFix = (params.get("wilayah")||"").toUpperCase();
+
+if(!desaFix){
+alert("Desa tidak dipilih!");
+location.href="awal.html";
+}
+
+// ===== DATA =====
+const bulanList=["Januari","Februari","Maret","April","Mei","Juni","Juli","Agustus","September","Oktober","November","Desember"];
+const tahunList=[2026,2027,2028,2029,2030];
+
+const fields=[
+{key:"masjid",label:"Jumlah Masjid"},
+{key:"masjid_bantuan",label:"Masjid Butuh Bantuan"},
+{key:"musholla",label:"Jumlah Musholla"},
+{key:"musholla_bantuan",label:"Musholla Butuh Bantuan"},
+{key:"pesantren",label:"Jumlah Pesantren"},
+{key:"guru_ngaji",label:"Guru Ngaji"}
+];
+
+let data=[];
+let editIndex=null;
+let modeEdit=false;
+
+// ===== AUTO ISI =====
+function isiOtomatis(bulanDipilih,tahunDipilih){
+
+let i=bulanList.indexOf(bulanDipilih);
+if(i<=0) return;
+
+let prev=data.find(d=>d.bulan===bulanList[i-1] && d.tahun==tahunDipilih);
+if(!prev) return;
+
+const f=document.getElementById("formDesaForm");
+
+fields.forEach(x=>{
+f[x.key].value=prev[x.key]||0;
+});
+}
+
+// ===== FORM =====
+function formDesa(){
+
+const c=document.getElementById("main-content");
+
+c.innerHTML=`
+<h3>DATA KEAGAMAAN DESA ${desaFix}</h3>
+
+<form id="formDesaForm">
+
+<div class="form-item">
+<label>Bulan</label>
+<select name="bulan">${bulanList.map(b=>`<option>${b}</option>`)}</select>
+</div>
+
+<div class="form-item">
+<label>Tahun</label>
+<select name="tahun">${tahunList.map(t=>`<option>${t}</option>`)}</select>
+</div>
+
+${fields.map(f=>`
+<div class="form-item">
+<label>${f.label}</label>
+<input type="number" name="${f.key}">
+</div>`).join('')}
+
+<button type="submit" class="btn-simpan">SIMPAN</button>
+<button type="button" class="btn-ubah">UBAH DATA</button>
+<button type="button" class="btn-tetap">TETAP</button>
+
+</form>
+
+<hr>
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>No</th>
+<th>Bulan</th>
+<th>Tahun</th>
+${fields.map(f=>`<th>${f.label}</th>`).join('')}
+<th>Total</th>
+<th>Aksi</th>
+</tr>
+</thead>
+<tbody id="tbDesa"></tbody>
+</table>
+</div>
+`;
+
+document.getElementById("formDesaForm").onsubmit=simpan;
+}
+
+// ===== EVENT =====
+document.addEventListener("change",function(e){
+if(e.target.name==="bulan"){
+const f=document.getElementById("formDesaForm");
+isiOtomatis(e.target.value,f.tahun.value);
+}
+});
+
+// ===== SIMPAN =====
+async function simpan(e){
+e.preventDefault();
+
+const f=e.target;
+
+let obj={bulan:f.bulan.value,tahun:f.tahun.value};
+fields.forEach(x=>obj[x.key]=+f[x.key].value||0);
+
+let snap=await get(ref(db,"desa/keagamaan/"+desaFix));
+let current=snap.val()?Object.values(snap.val()):[];
+
+if(modeEdit && editIndex!==null){
+current[editIndex]=obj;
+modeEdit=false;
+editIndex=null;
+
+await set(ref(db,"desa/keagamaan/"+desaFix),current);
+
+alert("✅ Data berhasil diubah");
+f.reset();
+return;
+}
+
+current.push(obj);
+
+await set(ref(db,"desa/keagamaan/"+desaFix),current);
+
+await push(ref(db,"notifikasi"),{
+desa:desaFix,
+jenis:"Data Keagamaan",
+bulan:obj.bulan,
+tahun:obj.tahun,
+waktu:new Date().toLocaleString()
+});
+
+alert("✅ Data & Notif masuk");
+f.reset();
+}
+
+// ===== REALTIME =====
+onValue(ref(db,"desa/keagamaan/"+desaFix),snap=>{
+data=snap.val()?Object.values(snap.val()):[];
+render();
+});
+
+// ===== RENDER =====
+window.render=function(){
+
+const tb=document.getElementById("tbDesa");
+if(!tb) return;
+
+tb.innerHTML="";
+
+data.forEach((r,i)=>{
+
+let total=fields.reduce((s,f)=>s+(r[f.key]||0),0);
+
+tb.innerHTML+=`
+<tr>
+<td>${i+1}</td>
+<td>${r.bulan}</td>
+<td>${r.tahun}</td>
+${fields.map(f=>`<td>${r[f.key]}</td>`).join('')}
+<td>${total}</td>
+<td>
+<button onclick="editRow(${i})" class="btn-ubah">Edit</button>
+<button onclick="deleteRow(${i})" class="btn-hapus">Hapus</button>
+</td>
+</tr>`;
+});
+}
+
+// ===== EDIT =====
+window.editRow=function(i){
+const r=data[i];
+const f=document.getElementById("formDesaForm");
+
+f.bulan.value=r.bulan;
+f.tahun.value=r.tahun;
+
+fields.forEach(x=>f[x.key].value=r[x.key]);
+
+editIndex=i;
+modeEdit=false;
+
+alert("Klik UBAH DATA lalu SIMPAN");
+}
+
+// ===== BUTTON =====
+document.addEventListener("click",function(e){
+
+if(e.target.classList.contains("btn-ubah")){
+if(editIndex===null){
+alert("Pilih data dulu!");
+return;
+}
+modeEdit=true;
+alert("Mode ubah aktif → klik SIMPAN");
+}
+
+if(e.target.classList.contains("btn-tetap")){
+
+const form=document.getElementById("formDesaForm");
+
+let bulan=form.bulan.value;
+let tahun=form.tahun.value;
+
+let i=bulanList.indexOf(bulan);
+if(i<=0) return alert("Tidak ada bulan sebelumnya");
+
+let prev=data.find(d=>d.bulan===bulanList[i-1] && d.tahun==tahun);
+
+if(!prev) return alert("Data sebelumnya belum ada");
+
+fields.forEach(f=>{
+form[f.key].value=prev[f.key]||0;
+});
+
+alert("✅ Data diisi dari bulan sebelumnya");
+}
+
+});
+
+// ===== DELETE =====
+window.deleteRow=async function(i){
+if(!confirm("Hapus data?")) return;
+data.splice(i,1);
+await set(ref(db,"desa/keagamaan/"+desaFix),data);
+}
+
+// INIT
+formDesa();
+
+</script>
+
+</body>
+</html>

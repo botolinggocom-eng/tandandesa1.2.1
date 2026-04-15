@@ -1,0 +1,383 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Data Kependudukan Kecamatan</title>
+
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.5.31/jspdf.plugin.autotable.min.js"></script>
+
+<style>
+:root{--primary:#0a7c6b;--bg:#f4f7f7;}
+body{font-family:'Poppins',Arial;margin:0;padding:10px;background:var(--bg);}
+h3{text-align:center;color:var(--primary);}
+
+.filter-box{
+background:white;padding:12px;border-radius:14px;margin-bottom:12px;
+display:flex;flex-direction:column;gap:10px;
+}
+
+select,button{
+padding:12px;border-radius:12px;border:1px solid #ccc;font-size:14px;
+}
+
+button{border:none;font-weight:bold;cursor:pointer;}
+.btn-filter{background:#0a7c6b;color:white;}
+.btn-pdf{background:#1976d2;color:white;}
+
+.table-wrapper{
+overflow-x:auto;background:white;border-radius:14px;
+}
+
+table{
+width:100%;min-width:900px;border-collapse:collapse;font-size:12px;
+}
+
+th,td{
+border:1px solid #eee;padding:6px;text-align:center;
+}
+
+th{background:var(--primary);color:white;}
+tfoot td{background:#e0f2f1;font-weight:bold;}
+
+canvas{
+margin-top:15px;background:white;padding:10px;border-radius:14px;
+}
+</style>
+</head>
+
+<body>
+
+<div id="main-content"></div>
+
+<script>
+
+// ===== DATA =====
+const desaList=[
+"BOTOLINGGO","SUMBER CANTING","GAYAM","GAYAM LOR",
+"KLEKEAN","PENANG","LANAS","LUMUTAN"
+];
+
+const bulanList=[
+"Januari","Februari","Maret","April","Mei","Juni",
+"Juli","Agustus","September","Oktober","November","Desember"
+];
+
+const tahunList=[2026,2027,2028,2029,2030];
+
+const fields=[
+{key:"penduduk_awal",label:"Penduduk Awal"},
+{key:"lahir",label:"Lahir"},
+{key:"meninggal",label:"Mati"},
+{key:"pendatang",label:"Pendatang"},
+{key:"pindah",label:"Pindah"}
+];
+
+let dataFirebase={kependudukan:{}};
+let chart;
+
+// ===== INIT =====
+function init(){
+document.getElementById("main-content").innerHTML=`
+<h3>DATA KEPENDUDUKAN KECAMATAN</h3>
+
+<div class="filter-box">
+<select id="filterBulan">
+<option value="">SEMUA BULAN</option>
+${bulanList.map(b=>`<option>${b}</option>`).join('')}
+</select>
+
+<select id="filterTahun">
+<option value="">SEMUA TAHUN</option>
+${tahunList.map(t=>`<option>${t}</option>`).join('')}
+</select>
+
+<button class="btn-filter" onclick="render()">Filter</button>
+<button class="btn-pdf" onclick="exportPDF()">Export PDF</button>
+</div>
+
+<div class="table-wrapper">
+<table>
+<thead>
+<tr>
+<th>No</th><th>Desa</th><th>Bulan</th><th>Tahun</th>
+${fields.map(f=>`<th colspan="3">${f.label}</th>`).join('')}
+<th colspan="3">Penduduk Akhir</th>
+</tr>
+<tr>
+<th></th><th></th><th></th><th></th>
+${fields.map(()=>`<th>L</th><th>P</th><th>L+P</th>`).join('')}
+<th>L</th><th>P</th><th>L+P</th>
+</tr>
+</thead>
+<tbody id="tb"></tbody>
+<tfoot id="tf"></tfoot>
+</table>
+</div>
+
+<canvas id="chart"></canvas>
+`;
+render();
+}
+
+// ===== RENDER =====
+function render(){
+
+const tb=document.getElementById("tb");
+const tf=document.getElementById("tf");
+
+const fB=document.getElementById("filterBulan").value;
+const fT=document.getElementById("filterTahun").value;
+
+tb.innerHTML="";
+tf.innerHTML="";
+
+let grafik={};
+desaList.forEach(d=>grafik[d]=0);
+
+let totalField={};
+fields.forEach(f=>totalField[f.key]={l:0,p:0,t:0});
+
+let totalAkhir={l:0,p:0,t:0};
+let no=0;
+
+desaList.forEach(desa=>{
+(dataFirebase.kependudukan[desa]||[])
+.filter(r=>(!fB||r.bulan===fB)&&(!fT||r.tahun==fT))
+.forEach(r=>{
+
+no++;
+
+let akhirL=(r.penduduk_awal.l+r.lahir.l+r.pendatang.l)-(r.meninggal.l+r.pindah.l);
+let akhirP=(r.penduduk_awal.p+r.lahir.p+r.pendatang.p)-(r.meninggal.p+r.pindah.p);
+let akhirT=akhirL+akhirP;
+
+fields.forEach(f=>{
+totalField[f.key].l+=r[f.key].l||0;
+totalField[f.key].p+=r[f.key].p||0;
+totalField[f.key].t+=r[f.key].t||0;
+});
+
+totalAkhir.l+=akhirL;
+totalAkhir.p+=akhirP;
+totalAkhir.t+=akhirT;
+
+grafik[desa]+=akhirT;
+
+tb.innerHTML+=`
+<tr>
+<td>${no}</td>
+<td>${desa}</td>
+<td>${r.bulan}</td>
+<td>${r.tahun}</td>
+${fields.map(f=>`
+<td>${r[f.key].l}</td>
+<td>${r[f.key].p}</td>
+<td>${r[f.key].t}</td>`).join('')}
+<td>${akhirL}</td>
+<td>${akhirP}</td>
+<td>${akhirT}</td>
+</tr>`;
+});
+});
+
+tf.innerHTML=`
+<tr>
+<td colspan="4">TOTAL</td>
+${fields.map(f=>`
+<td>${totalField[f.key].l}</td>
+<td>${totalField[f.key].p}</td>
+<td>${totalField[f.key].t}</td>`).join('')}
+<td>${totalAkhir.l}</td>
+<td>${totalAkhir.p}</td>
+<td>${totalAkhir.t}</td>
+</tr>
+`;
+
+if(chart) chart.destroy();
+
+chart=new Chart(document.getElementById("chart"),{
+type:'bar',
+data:{
+labels:desaList,
+datasets:[{
+label:"Total Penduduk",
+data:desaList.map(d=>grafik[d]),
+backgroundColor:[
+"#ef5350", // merah
+"#42a5f5", // biru
+"#66bb6a", // hijau
+"#ffa726", // orange
+"#ab47bc", // ungu
+"#26c6da", // cyan
+"#d4e157", // lime
+"#8d6e63"  // coklat
+]
+}]
+},
+options:{
+responsive:true,
+plugins:{
+legend:{display:false}
+},
+scales:{
+y:{beginAtZero:true}
+}
+}
+});
+}
+
+// ===== EXPORT PDF FINAL + TOTAL =====
+window.exportPDF=function(){
+
+const { jsPDF } = window.jspdf;
+
+let doc=new jsPDF({orientation:"landscape",unit:"mm",format:"a4"});
+
+const fB=document.getElementById("filterBulan").value;
+const fT=document.getElementById("filterTahun").value;
+
+doc.setFont("times","bold");
+doc.setFontSize(12);
+doc.text("LAPORAN DATA KEPENDUDUKAN",148,10,{align:"center"});
+
+doc.setFont("times","normal");
+doc.setFontSize(10);
+doc.text("KECAMATAN BOTOLINGGO",148,16,{align:"center"});
+doc.text("BULAN : "+(fB||"SEMUA")+" "+(fT||""),148,21,{align:"center"});
+
+// HEADER
+let head = [
+[
+{content:"No",rowSpan:2},
+{content:"Desa",rowSpan:2},
+{content:"Bulan",rowSpan:2},
+{content:"Tahun",rowSpan:2},
+{content:"Penduduk Awal",colSpan:3},
+{content:"Lahir",colSpan:3},
+{content:"Mati",colSpan:3},
+{content:"Pendatang",colSpan:3},
+{content:"Pindah",colSpan:3},
+{content:"Penduduk Akhir",colSpan:3}
+],
+[
+"L","P","L+P",
+"L","P","L+P",
+"L","P","L+P",
+"L","P","L+P",
+"L","P","L+P",
+"L","P","L+P"
+]
+];
+
+// BODY + TOTAL
+let body=[];
+let no=0;
+
+let totalField={};
+fields.forEach(f=>totalField[f.key]={l:0,p:0,t:0});
+let totalAkhir={l:0,p:0,t:0};
+
+desaList.forEach(desa=>{
+(dataFirebase.kependudukan[desa]||[])
+.filter(r=>(!fB||r.bulan===fB)&&(!fT||r.tahun==fT))
+.forEach(r=>{
+
+no++;
+
+let akhirL=(r.penduduk_awal.l+r.lahir.l+r.pendatang.l)-(r.meninggal.l+r.pindah.l);
+let akhirP=(r.penduduk_awal.p+r.lahir.p+r.pendatang.p)-(r.meninggal.p+r.pindah.p);
+let akhirT=akhirL+akhirP;
+
+fields.forEach(f=>{
+totalField[f.key].l+=r[f.key].l||0;
+totalField[f.key].p+=r[f.key].p||0;
+totalField[f.key].t+=r[f.key].t||0;
+});
+
+totalAkhir.l+=akhirL;
+totalAkhir.p+=akhirP;
+totalAkhir.t+=akhirT;
+
+body.push([
+no,desa,r.bulan,r.tahun,
+r.penduduk_awal.l,r.penduduk_awal.p,r.penduduk_awal.t,
+r.lahir.l,r.lahir.p,r.lahir.t,
+r.meninggal.l,r.meninggal.p,r.meninggal.t,
+r.pendatang.l,r.pendatang.p,r.pendatang.t,
+r.pindah.l,r.pindah.p,r.pindah.t,
+akhirL,akhirP,akhirT
+]);
+
+});
+});
+
+// TAMBAH TOTAL
+body.push([
+"",
+"TOTAL",
+"",
+"",
+...fields.flatMap(f=>[
+totalField[f.key].l,
+totalField[f.key].p,
+totalField[f.key].t
+]),
+totalAkhir.l,
+totalAkhir.p,
+totalAkhir.t
+]);
+
+// TABLE
+doc.autoTable({
+startY:25,
+head:head,
+body:body,
+styles:{
+font:"times",
+fontSize:7,
+cellPadding:2,
+lineWidth:0.3,
+lineColor:[0,0,0],
+halign:"center"
+},
+headStyles:{fillColor:false,textColor:0,fontStyle:"bold"},
+theme:"grid",
+didParseCell:function(data){
+if(data.row.index===body.length-1){
+data.cell.styles.fontStyle="bold";
+}
+}
+});
+
+doc.save("kependudukan_kecamatan.pdf");
+};
+
+// START
+init();
+
+</script>
+
+<!-- FIREBASE -->
+<script type="module">
+import { baca } from "./firebase.js";
+
+baca("desa/kependudukan",(fbData)=>{
+if(!fbData) return;
+
+dataFirebase.kependudukan={};
+
+for(let key in fbData){
+let val=fbData[key];
+dataFirebase.kependudukan[key.toUpperCase()]=
+Array.isArray(val)?val:Object.values(val);
+}
+
+render();
+});
+</script>
+
+</body>
+</html>
